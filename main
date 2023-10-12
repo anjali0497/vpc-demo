@@ -1,0 +1,90 @@
+provider "aws" {
+  region     = "us-east-1"
+}
+
+//create ec2 for vpc
+
+resource "aws_instance" "ec2-for-vpc" {
+  ami                     = "ami-041feb57c611358bd"
+  instance_type           = "t2.micro"
+   subnet_id = aws_subnet.demo-subnet.id
+  vpc_security_group_ids = [ aws_security_group.demo-vpc-sg.id ]
+}
+
+//create a vpc
+
+resource "aws_vpc" "demo-vpc" {
+  cidr_block = "10.10.0.0/16"
+}
+
+//create a subnet
+
+resource "aws_subnet" "demo-subnet" {
+  vpc_id     = aws_vpc.demo-vpc.id
+  cidr_block = "10.10.1.0/24"
+
+  tags = {
+    Name = "demo-subnet"
+  }
+}
+
+//create a internet gateway
+
+resource "aws_internet_gateway" "demo-igw" {
+  vpc_id = aws_vpc.demo-vpc.id
+
+  tags = {
+    Name = "demo-igw"
+  }
+}
+
+//create a route table
+
+resource "aws_route_table" "demo-rt" {
+  vpc_id = aws_vpc.demo-vpc.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.demo-igw.id
+  }
+
+  tags = {
+    Name = "demo-rt"
+  }
+}
+
+//association subnet with routable
+
+resource "aws_route_table_association" "demo-rt-association" {
+  gateway_id     = aws_internet_gateway.demo-igw.id
+  route_table_id = aws_route_table.demo-rt.id
+}
+
+//create a security group
+
+resource "aws_security_group" "demo-vpc-sg" {
+  name        = "demo-vpc-sg" 
+  vpc_id      = aws_vpc.demo-vpc.id
+
+  ingress {
+    from_port        = 22
+    to_port          = 22
+    protocol         = "tcp"
+    cidr_blocks      = [aws_vpc.demo-vpc.cidr_block]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+
+  egress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+
+  tags = {
+    Name = "demo-vpc-sg" 
+  }
+}
+
+
